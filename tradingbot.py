@@ -19,12 +19,12 @@ from lumibot.traders import Trader
 
 from datetime import datetime
 
-# API Config
+# Alpaca API Configuration Credentials
 API_KEY = "PKHMP3QWCBKUYFU0G17O"
 API_SECRET = "aD2btcQyPUo0qCDP55OIk7RwD6nSBeriJuZcKcho"
 BASE_URL = "https://paper-api.alpaca.markets/v2"
 
-# API Config as a Dict
+# API Credentials as a Dict
 ALPACA_CREDS = {
     "API_KEY": API_KEY,
     "API_SECRET": API_SECRET,
@@ -32,66 +32,90 @@ ALPACA_CREDS = {
 }
 
 
-# Backbone of the trading bot
-
 class MLTrader(Strategy):
     """
-        The backbone of the trading bot.
+    The backbone of the trading bot.
 
-        A trading strategy class for a machine learning-based trader.
+    A trading strategy class for a machine learning-based trader.
 
-        This class extends from lumibot's Strategy class, defining the initial setup and the trading
-        actions for each iteration.
+    This class extends from lumibot's Strategy class, defining the initial setup and the trading
+    actions for each iteration.
 
-        Methods:
-            initialize(symbol): Prepares the strategy for the trading symbol.
-            on_trading_iteration(): Executes the trading strategy on each iteration.
+    Attributes:
+        symbol (str): The trading symbol for which the strategy is applied.
+        sleeptime (str): Interval between trading actions.
+        last_trade (str): Tracks the last trading action performed.
+        cash_at_risk (float): Proportion of available cash to risk on each trade.
+
+    Methods:
+        initialize(symbol): Prepares the strategy for the trading symbol.
+        position_sizing(): Calculates the amount of shares to buy based on available cash and cash at risk.
+        on_trading_iteration(): Executes the trading strategy on each iteration.
     """
-    def initialize(self, symbol: str = "SPY"):
+    def initialize(self, symbol: str = "SPY", cash_at_risk:float=0.5):
         """
-            Initializes the strategy with a trading symbol.
+        Initializes the strategy with a trading symbol.
 
-            Parameters:
-                symbol (str): The trading symbol for which the strategy is applied.
+         Parameters:
+            symbol (str): The trading symbol for which the strategy is applied.
+            cash_at_risk (float): Percentage of available cash risked in each trade.
         """
-
         self.symbol = symbol
         self.sleeptime = "24H"  # Dictates trading speed
-        self.last_trade = None  # Let us track last trade
+        self.last_trade = None  # Statically set current trade as initial trade
+        self.cash_at_risk = cash_at_risk
+
+    # [CRITICAL] Set up position sizing
+    def position_sizing(self):
+        """
+        Determines the size of the position to take based on cash at risk and current price of the symbol.
+
+        Returns:
+            tuple: Contains available cash, the last price of the symbol, and the quantity to trade.
+        """
+        cash = self.get_cash()  # Get the current capital available
+        last_price = self.get_last_price(self.symbol)  # Get the last price on the current symbol
+        quantity = round(cash * self.cash_at_risk / last_price, 0)
+        return cash, last_price, quantity
 
     def on_trading_iteration(self):
         """
-            Executes the trading action for each iteration (buy 10 units).
+        Executes the trading action for each iteration based on position sizing and trading strategy.
 
-            This method defines the baseline trade action if no previous trades have been made.
+        Buys a calculated quantity of the symbol if no trades have been made previously and sufficient cash is available.
         """
-        # Baseline trade
-        if self.last_trade is None:
-            order = self.create_order(
-                self.symbol,
-                10,
-                "buy",
-                # type = "market",
-            )
-            self.submit_order(order)
-            self.last_trade = "buy"
+        cash, last_price, quantity = self.position_sizing()  # Get position sizing before executing a trade
+
+        if cash > last_price:  # Check if there is enough cash to perform a transaction
+            # Baseline trade
+            if self.last_trade is None:
+                order = self.create_order(
+                    self.symbol,
+                    quantity,
+                    "buy",
+                    take_profit_price=last_price * 1.20,  # Setting a take profit 20% above the purchase price
+                    stop_loss_price=last_price * 0.95,  # Setting a stop loss 5% below the purchase price
+                )
+                self.submit_order(order)
+                self.last_trade = "buy"
 
 
-start_date = datetime(2023, 12, 15)
-end_date = datetime(2023, 12, 31)
+# Defaulting to December data for dev
+start_date = datetime(2019, 3, 15)
+end_date = datetime(2024, 3, 15)
 
 
-# Set up broker
+# Set up broker. Calling Alpaca broker and injecting API Config dict
 broker = Alpaca(ALPACA_CREDS)
 
 # Spin up an instance of the strategy
-strategy = MLTrader(name='mlstrat', broker=broker, parmeters={"symbol": "SPY"})
+strategy = MLTrader(name='mlstrat', broker=broker, parmeters={"symbol": "SPY", "cash_at_risk": 0.5})
 
 # Set up back testing
 strategy.backtest(
     YahooDataBacktesting,
     start_date,
     end_date,
-    parmeters={"symbol": "SPY"}
+    parmeters={"symbol": "SPY", "cash_at_risk": 0.5}
 )
 
