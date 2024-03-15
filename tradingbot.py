@@ -17,6 +17,8 @@ from lumibot.backtesting import YahooDataBacktesting
 from lumibot.strategies.strategy import Strategy
 from lumibot.traders import Trader
 
+from finbert_utll import estimate_sentiment
+
 from alpaca_trade_api import REST
 
 from datetime import datetime, timedelta
@@ -87,7 +89,7 @@ class MLTrader(Strategy):
         minus_three_days = today - timedelta(days=3)
         return today.strftime("%Y-%m-%d"), minus_three_days.strftime("%Y-%m-%d")
 
-    def get_news(self):
+    def get_sentiment(self):
         today, minus_three_days = self.get_dates()
         news = self.api.get_news(symbol=self.symbol, start=minus_three_days, end=today)
 
@@ -95,7 +97,10 @@ class MLTrader(Strategy):
         # Raw is the raw news data
         # Headline is the news headline
         news = [item.__dict__["_raw"]["headline"] for item in news]
-        return news
+
+        probability, sentiment = estimate_sentiment(news)
+
+        return probability, sentiment
 
     def on_trading_iteration(self):
         """
@@ -108,8 +113,8 @@ class MLTrader(Strategy):
         if cash > last_price:  # Check if there is enough cash to perform a transaction
             # Baseline trade
             if self.last_trade is None:
-                news = self.get_news()  # Get news on trade target
-                print(news)
+                probability, sentiment = self.get_sentiment()  # Get news on trade target
+                print(probability, sentiment)
                 order = self.create_order(
                     self.symbol,
                     quantity,
