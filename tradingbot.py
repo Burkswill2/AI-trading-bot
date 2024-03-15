@@ -20,7 +20,6 @@ from lumibot.traders import Trader
 from alpaca_trade_api import REST
 
 from datetime import datetime, timedelta
-from yarl import URL
 
 
 # Alpaca API Configuration Credentials
