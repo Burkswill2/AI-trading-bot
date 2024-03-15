@@ -100,7 +100,7 @@ class MLTrader(Strategy):
                 self.last_trade = "buy"
 
 
-# Defaulting to December data for dev
+# Trading period configuration (5yr)
 start_date = datetime(2019, 3, 15)
 end_date = datetime(2024, 3, 15)
 
