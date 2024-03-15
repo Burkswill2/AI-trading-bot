@@ -17,7 +17,11 @@ from lumibot.backtesting import YahooDataBacktesting
 from lumibot.strategies.strategy import Strategy
 from lumibot.traders import Trader
 
-from datetime import datetime
+from alpaca_trade_api import REST
+
+from datetime import datetime, timedelta
+from yarl import URL
+
 
 # Alpaca API Configuration Credentials
 API_KEY = "PKHMP3QWCBKUYFU0G17O"
@@ -64,6 +68,7 @@ class MLTrader(Strategy):
         self.sleeptime = "24H"  # Dictates trading speed
         self.last_trade = None  # Statically set current trade as initial trade
         self.cash_at_risk = cash_at_risk
+        self.api = REST(key_id=API_KEY, secret_key=API_SECRET, base_url=BASE_URL)
 
     # [CRITICAL] Set up position sizing
     def position_sizing(self):
@@ -78,6 +83,21 @@ class MLTrader(Strategy):
         quantity = round(cash * self.cash_at_risk / last_price, 0)
         return cash, last_price, quantity
 
+    def get_dates(self):
+        today = self.get_datetime()
+        minus_three_days = today - timedelta(days=3)
+        return today.strftime("%Y-%m-%d"), minus_three_days.strftime("%Y-%m-%d")
+
+    def get_news(self):
+        today, minus_three_days = self.get_dates()
+        news = self.api.get_news(symbol=self.symbol, start=minus_three_days, end=today)
+
+        # Process news object into a list comprehension
+        # Raw is the raw news data
+        # Headline is the news headline
+        news = [item.__dict__["_raw"]["headline"] for item in news]
+        return news
+
     def on_trading_iteration(self):
         """
         Executes the trading action for each iteration based on position sizing and trading strategy.
@@ -89,6 +109,8 @@ class MLTrader(Strategy):
         if cash > last_price:  # Check if there is enough cash to perform a transaction
             # Baseline trade
             if self.last_trade is None:
+                news = self.get_news()  # Get news on trade target
+                print(news)
                 order = self.create_order(
                     self.symbol,
                     quantity,
