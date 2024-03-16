@@ -10,7 +10,7 @@ model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
 labels = ["positive", "negative", "neutral"]
 
 
-def estimate_sentiment(news) -> [float, str]:
+def estimate_sentiment(news):
     if news:
         """
         Data Preparation by Tokenization
@@ -27,7 +27,9 @@ def estimate_sentiment(news) -> [float, str]:
             # set attention_mask = tokens to narrow focus on data and not padding
             # "logits" for raw unnormalized scoring assignments to each class within the model
         """
-        result = model(tokens["input_ids"], attention_mask=tokens["attention_mask"])["logits"]
+        result = model(tokens["input_ids"], attention_mask=tokens["attention_mask"])[
+            "logits"
+        ]
 
         """
         Softmax Application
@@ -45,7 +47,7 @@ def estimate_sentiment(news) -> [float, str]:
         sentiment = labels[torch.argmax(result)]
         return probability, sentiment
     else:
-        return 0.0, labels[-1]  # by default return probability of 0.0 and sentiment of neutral
+        return 0, labels[-1]  # by default return probability of 0.0 and sentiment of neutral
 
 
 if __name__ == "__main__":
