@@ -57,7 +57,7 @@ class MLTrader(Strategy):
         position_sizing(): Calculates the amount of shares to buy based on available cash and cash at risk.
         on_trading_iteration(): Executes the trading strategy on each iteration.
     """
-    def initialize(self, symbol: str = "SPY", cash_at_risk:float=0.5):
+    def initialize(self, symbol: str = "SPY", cash_at_risk: float = 0.5):
         """
         Initializes the strategy with a trading symbol.
 
@@ -106,15 +106,26 @@ class MLTrader(Strategy):
         """
         Executes the trading action for each iteration based on position sizing and trading strategy.
 
-        Buys a calculated quantity of the symbol if no trades have been made previously and sufficient cash is available.
+        Buys a calculated quantity of the symbol if no trades have been made previously and sufficient cash is available
         """
         cash, last_price, quantity = self.position_sizing()  # Get position sizing before executing a trade
 
+        probability, sentiment = self.get_sentiment()  # Get the sentiment for the current trade
+
         if cash > last_price:  # Check if there is enough cash to perform a transaction
-            # Baseline trade
-            if self.last_trade is None:
-                probability, sentiment = self.get_sentiment()  # Get news on trade target
-                print(probability, sentiment)
+            if sentiment == "positive" and probability > 0.999:  # Issuing a buy order
+
+                if self.last_trade == "sell":
+                    """
+                        Rationale
+                            This strategy is based on the premise that asset prices are likely to increase in a market 
+                            with strong positive sentiment.
+
+                            Ensures that the bot is not positioned to sell before an anticipated rise in asset values. 
+                    """
+                    self.sell_all()
+
+                # Issuing a new order
                 order = self.create_order(
                     self.symbol,
                     quantity,
@@ -125,10 +136,34 @@ class MLTrader(Strategy):
                 self.submit_order(order)
                 self.last_trade = "buy"
 
+        elif sentiment == "negative" and probability > 0.999:  # Issuing a sell order
 
-# Trading period configuration (5yr)
-start_date = datetime(2019, 3, 15)
-end_date = datetime(2024, 3, 15)
+            if self.last_trade == "buy":
+                """
+                    Rationale
+                        This strategy is based on the premise that asset prices are likely to decrease in a market 
+                        with strong negative sentiment.
+
+                        Ensures that the bot does not maintain a buy position before an anticipated decline in asset 
+                        values. 
+                """
+                self.sell_all()
+
+            # Issuing a new order
+            order = self.create_order(
+                self.symbol,
+                quantity,
+                "sell",
+                take_profit_price=last_price * 0.80,  # Setting a take profit 20% above the purchase price
+                stop_loss_price=last_price * 1.05,  # Setting a stop loss 5% below the purchase price
+            )
+            self.submit_order(order)
+            self.last_trade = "sell"
+
+
+# Trading period configuration
+start_date = datetime(2020, 1, 1)
+end_date = datetime(2023, 12, 31)
 
 
 # Set up broker. Calling Alpaca broker and injecting API Config dict
