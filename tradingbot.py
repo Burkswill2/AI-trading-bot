@@ -94,8 +94,6 @@ class MLTrader(Strategy):
         news = self.api.get_news(symbol=self.symbol, start=minus_three_days, end=today)
 
         # Process news object into a list comprehension
-        # Raw is the raw news data
-        # Headline is the news headline
         news = [item.__dict__["_raw"]["headline"] for item in news]
 
         probability, sentiment = estimate_sentiment(news)
@@ -136,29 +134,29 @@ class MLTrader(Strategy):
                 self.submit_order(order)
                 self.last_trade = "buy"
 
-        elif sentiment == "negative" and probability > 0.999:  # Issuing a sell order
+            elif sentiment == "negative" and probability > 0.999:  # Issuing a sell order
 
-            if self.last_trade == "buy":
-                """
-                    Rationale
-                        This strategy is based on the premise that asset prices are likely to decrease in a market 
-                        with strong negative sentiment.
+                if self.last_trade == "buy":
+                    """
+                        Rationale
+                            This strategy is based on the premise that asset prices are likely to decrease in a market 
+                            with strong negative sentiment.
+        
+                            Ensures that the bot does not maintain a buy position before an anticipated decline in asset 
+                            values. 
+                    """
+                    self.sell_all()
 
-                        Ensures that the bot does not maintain a buy position before an anticipated decline in asset 
-                        values. 
-                """
-                self.sell_all()
-
-            # Issuing a new order
-            order = self.create_order(
-                self.symbol,
-                quantity,
-                "sell",
-                take_profit_price=last_price * 0.80,  # Setting a take profit 20% above the purchase price
-                stop_loss_price=last_price * 1.05,  # Setting a stop loss 5% below the purchase price
-            )
-            self.submit_order(order)
-            self.last_trade = "sell"
+                # Issuing a new order
+                order = self.create_order(
+                    self.symbol,
+                    quantity,
+                    "sell",
+                    take_profit_price=last_price * 0.80,  # Setting a take profit 20% above the purchase price
+                    stop_loss_price=last_price * 1.05,  # Setting a stop loss 5% below the purchase price
+                )
+                self.submit_order(order)
+                self.last_trade = "sell"
 
 
 # Trading period configuration
