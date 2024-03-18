@@ -22,12 +22,17 @@ from finbert_utll import estimate_sentiment
 from alpaca_trade_api import REST
 
 from datetime import datetime, timedelta
+# from dataService import DataService
+
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
 
 # Alpaca API Configuration Credentials
-API_KEY = "PKHMP3QWCBKUYFU0G17O"
-API_SECRET = "aD2btcQyPUo0qCDP55OIk7RwD6nSBeriJuZcKcho"
-BASE_URL = "https://paper-api.alpaca.markets/v2"
+API_KEY = os.getenv("ALPACA_API_KEY")
+API_SECRET = os.getenv("ALPACA_API_SECRET")
+BASE_URL = os.getenv("ALPACA_BASE_URL")
 
 # API Credentials as a Dict
 ALPACA_CREDS = {
